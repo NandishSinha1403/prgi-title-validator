@@ -5,12 +5,17 @@ from backend.services.fuzzy_checker import check_fuzzy
 from backend.services.rules_checker import check_rules
 
 def load_existing_titles():
-    path = os.path.join(os.path.dirname(__file__), '..', 'data', 'sample_titles.json')
-    try:
-        with open(path, 'r') as f:
+    data_dir = os.path.join(os.path.dirname(__file__), '..', 'data')
+    database_path = os.path.join(data_dir, 'titles_database.json')
+    sample_path = os.path.join(data_dir, 'sample_titles.json')
+    
+    if os.path.exists(database_path):
+        with open(database_path, 'r') as f:
             return json.load(f)
-    except Exception:
-        return []
+    elif os.path.exists(sample_path):
+        with open(sample_path, 'r') as f:
+            return json.load(f)
+    return []
 
 def verify_title(title: str) -> dict:
     existing_titles = load_existing_titles()
@@ -18,7 +23,7 @@ def verify_title(title: str) -> dict:
     phonetic_results = check_phonetic(title, existing_titles)
     fuzzy_results = check_fuzzy(title, existing_titles)
     
-    reasons = check_rules(title)
+    reasons = check_rules(title, existing_titles)
     
     # Combine and de-duplicate highest similarity scores
     all_similarities = {}
@@ -41,6 +46,7 @@ def verify_title(title: str) -> dict:
         
     probability = max(0, 100 - highest_similarity)
     
+    # Final check: if very high similarity, add to rejection reasons
     if highest_similarity > 80:
         reasons.append(f"Title is extremely similar ({highest_similarity}%) to an existing title.")
         
@@ -48,6 +54,6 @@ def verify_title(title: str) -> dict:
         "title": title,
         "similarity_score": round(highest_similarity, 2),
         "probability": round(probability, 2),
-        "rejection_reasons": reasons,
+        "rejection_reasons": sorted(list(set(reasons))),
         "similar_titles": similar_titles_list
     }
