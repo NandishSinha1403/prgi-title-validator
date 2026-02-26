@@ -67,7 +67,10 @@ prgi-title-validator/
 │       ├── rules_checker.py     # Disallowed words, periodicity, combination
 │       └── semantic_checker.py  # Cross-language + conceptual theme detection
 └── frontend/
-└── index.html               # Unified SPA — Validator, Database, Stats, Admin
+    ├── index.html               # Main single-page app (HTML structure only)
+    └── assets/
+        ├── style.css            # All styles, dark Harvard-inspired theme
+        └── app.js               # All JavaScript, API calls, tab switching
 
 ---
 
