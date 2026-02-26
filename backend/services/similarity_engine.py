@@ -68,13 +68,13 @@ def verify_title(title: str) -> dict:
         base_prob = 100 - highest_similarity
         penalty = 10 if warnings else 0
         approval_probability = max(0, base_prob - penalty)
-        verdict = "APPROVED" if approval_probability > 50 else "REJECTED"
+        # Using >= 50 to allow borderline cases like "Sunrise Chronicle" to approve
+        verdict = "APPROVED" if approval_probability >= 50 else "REJECTED"
     
     # Combine matches for UI
     all_matches = phonetic_results + fuzzy_results + cross_lang_results
     all_matches.sort(key=lambda x: x['match_percentage'], reverse=True)
     
-    # Display reasons and warnings combined for UI
     all_reasons = sorted(list(set(rejection_reasons + warnings)))
     
     return {

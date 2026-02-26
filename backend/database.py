@@ -2,106 +2,120 @@ import sqlite3
 import os
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'data', 'prgi_titles.db')
-ADMIN_DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'admin', 'prgi_data.db')
 
-TITLES_CACHE = []
+TITLES_CACHE_LIST = []
+TITLES_CACHE_SET = set()
 
 def get_connection():
     return sqlite3.connect(DB_PATH)
 
 def load_titles_into_memory():
-    global TITLES_CACHE
-    titles1_raw = []
-    titles2_raw = []
-    
-    # Load from prgi_titles.db
-    if os.path.exists(DB_PATH):
-        try:
-            conn = sqlite3.connect(DB_PATH)
-            cursor = conn.cursor()
-            cursor.execute('SELECT title FROM titles')
-            titles1_raw = [row[0] for row in cursor.fetchall()]
-            conn.close()
-            print(f"Loaded {len(titles1_raw):,} titles from prgi_titles.db")
-        except sqlite3.OperationalError:
-            print("Loaded 0 titles from prgi_titles.db")
-    
-    # Load from admin/prgi_data.db
-    if os.path.exists(ADMIN_DB_PATH):
-        try:
-            conn = sqlite3.connect(ADMIN_DB_PATH)
-            cursor = conn.cursor()
-            cursor.execute('SELECT title_name FROM registrations')
-            titles2_raw = [row[0] for row in cursor.fetchall()]
-            conn.close()
-            print(f"Loaded {len(titles2_raw):,} titles from admin/prgi_data.db")
-        except Exception as e:
-            print(f"Warning: Could not load titles from admin/prgi_data.db: {e}")
-    else:
-        print(f"Warning: admin/prgi_data.db missing, skipping.")
+    global TITLES_CACHE_LIST, TITLES_CACHE_SET
+    if not os.path.exists(DB_PATH):
+        return
 
-    # Merge, filter NULL/empty, deduplicate, and store as UPPERCASE
-    merged_set = set()
-    for t in titles1_raw:
-        if t and str(t).strip():
-            merged_set.add(str(t).strip().upper())
-            
-    for t in titles2_raw:
-        if t and str(t).strip():
-            merged_set.add(str(t).strip().upper())
-            
-    TITLES_CACHE = list(merged_set)
-    print(f"After deduplication: {len(TITLES_CACHE):,} unique titles ready")
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT title FROM titles')
+        titles_raw = [row[0] for row in cursor.fetchall()]
+        conn.close()
+        
+        merged_set = {str(t).strip().upper() for t in titles_raw if t and str(t).strip()}
+        TITLES_CACHE_SET = merged_set
+        TITLES_CACHE_LIST = list(merged_set)
+        print(f"Loaded {len(titles_raw):,} titles from prgi_titles.db")
+        print(f"After deduplication: {len(TITLES_CACHE_SET):,} unique titles ready")
+    except Exception as e:
+        print(f"Error loading titles: {e}")
 
 def init_db():
     conn = get_connection()
     cursor = conn.cursor()
-    
-    # Create tables
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS titles (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        code TEXT,
-        title TEXT UNIQUE NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        title TEXT NOT NULL,
+        registration_number TEXT,
+        registration_date TEXT,
+        language TEXT,
+        periodicity TEXT,
+        publisher TEXT,
+        owner TEXT,
+        pub_state TEXT,
+        pub_district TEXT
     )
     ''')
-    
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS disallowed_words (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         word TEXT UNIQUE NOT NULL
     )
     ''')
-    
-    # Create indexes
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_title ON titles(title)')
-    
     conn.commit()
     conn.close()
-    
-    # Load merged titles into memory on startup
     load_titles_into_memory()
 
 def get_all_titles():
-    # Return from memory cache if available, otherwise fallback to DB query
-    if TITLES_CACHE:
-        return TITLES_CACHE
-        
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute('SELECT title FROM titles')
-        titles = [row[0] for row in cursor.fetchall()]
-        conn.close()
-        return titles
-    except sqlite3.OperationalError:
-        return []
+    return TITLES_CACHE_LIST if TITLES_CACHE_LIST else []
 
-def search_titles(query):
-    # Search within the memory cache
-    query_upper = query.upper()
-    return [t for t in TITLES_CACHE if query_upper in t]
+def get_titles_set():
+    return TITLES_CACHE_SET
+
+def search_db_full(params):
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    query = "SELECT * FROM titles WHERE 1=1"
+    args = []
+    
+    mapping = {
+        "q": "title",
+        "registration_number": "registration_number",
+        "owner": "owner",
+        "state": "pub_state",
+        "district": "pub_district",
+        "language": "language"
+    }
+    
+    for key, col in mapping.items():
+        val = params.get(key)
+        if val:
+            query += f" AND {col} LIKE ?"
+            args.append(f"%{val}%")
+            
+    limit = params.get("limit", 100)
+    query += f" LIMIT {limit}"
+    
+    cursor.execute(query, args)
+    rows = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return rows
+
+def get_comprehensive_stats():
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    stats = {}
+    try:
+        cursor.execute("SELECT COUNT(*) FROM titles")
+        stats["total_titles"] = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(DISTINCT language) FROM titles WHERE language != ''")
+        stats["total_languages"] = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(DISTINCT pub_state) FROM titles WHERE pub_state != ''")
+        stats["total_states"] = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM disallowed_words")
+        stats["total_disallowed_words"] = cursor.fetchone()[0]
+    except:
+        stats = {"total_titles": 0, "total_languages": 0, "total_states": 0, "total_disallowed_words": 0}
+        
+    conn.close()
+    return stats
 
 def add_disallowed_word(word):
     conn = get_connection()
@@ -110,20 +124,17 @@ def add_disallowed_word(word):
     conn.commit()
     conn.close()
 
-def get_disallowed_words():
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute('SELECT word FROM disallowed_words')
-        words = [row[0] for row in cursor.fetchall()]
-        conn.close()
-        return words
-    except sqlite3.OperationalError:
-        return []
+def delete_disallowed_word(word):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM disallowed_words WHERE word = ?', (word.upper(),))
+    conn.commit()
+    conn.close()
 
-def get_db_stats():
-    return {
-        "total_titles": len(TITLES_CACHE),
-        "total_disallowed_words": len(get_disallowed_words()),
-        "database": "SQLite (Merged Memory Cache)"
-    }
+def get_disallowed_words():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT word FROM disallowed_words')
+    words = [row[0] for row in cursor.fetchall()]
+    conn.close()
+    return words
