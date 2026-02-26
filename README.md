@@ -75,7 +75,7 @@ cd prgi-title-validator
 cd backend
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+pip install fastapi uvicorn rapidfuzz jellyfish deep-translator pydantic pandas httpx requests python-multipart
 
 # 3. Start backend (from project root)
 cd ..
