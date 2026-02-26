@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Validation Results - PRGI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="results-header">
+            <h1>Analysis Report</h1>
+            <h2 id="submittedTitle" style="color: #a0a0a0; font-weight: 400; word-wrap: break-word;"></h2>
+        </header>
+        
+        <div id="loader" class="loader">Analyzing similarity and running compliance checks...</div>
+        
+        <main id="resultsContent" class="hidden">
+            <div class="gauge-container">
+                <div class="gauge" id="probabilityGauge" style="--value: 0%;">
+                    <div class="gauge-content">
+                        <div class="gauge-value" id="probabilityValue">0%</div>
+                        <div class="gauge-label">Approval Probability</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="reasonsContainer" class="hidden">
+                <h3 class="section-title">Compliance Issues</h3>
+                <div class="reasons-list" id="reasonsList"></div>
+            </div>
+
+            <div id="similarContainer" class="hidden">
+                <h3 class="section-title">Similar Existing Titles</h3>
+                <div class="similar-list" id="similarList"></div>
+            </div>
+            
+            <div id="successMessage" class="hidden" style="text-align: center; color: var(--success-color); font-size: 1.2rem; margin: 2rem 0;">
+                Great! No major similarity conflicts or rule infractions found.
+            </div>
+
+            <div class="actions">
+                <a href="submit.html" class="btn btn-secondary">Try Another Title</a>
+            </div>
+        </main>
+    </div>
+    <script src="assets/app.js"></script>
+</body>
+</html>
