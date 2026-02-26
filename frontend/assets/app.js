@@ -34,7 +34,6 @@ if (titleForm) {
         if (title) {
             submitBtn.classList.add('loading');
             sessionStorage.setItem('submittedTitle', title);
-            // Small delay for UI feedback
             setTimeout(() => {
                 window.location.href = 'results.html';
             }, 300);
@@ -73,7 +72,6 @@ async function fetchResults(title) {
         
         const data = await response.json();
         
-        // Add 500ms delay for dramatic effect
         setTimeout(() => {
             renderResults(data);
         }, 500);
@@ -93,77 +91,99 @@ function renderResults(data) {
     const probValue = document.getElementById('probabilityValue');
     const statusBanner = document.getElementById('statusBanner');
     
-    // Dynamic Colors Logic
+    // 1. Dynamic Colors
     let colorHex = 'var(--accent-color)';
-    if (data.probability > 60) {
+    if (data.approval_probability > 60) {
         colorHex = 'var(--success-color)';
-    } else if (data.probability >= 30) {
+    } else if (data.approval_probability >= 30) {
         colorHex = 'var(--warning-color)';
     } else {
         colorHex = 'var(--error-color)';
     }
     
-    // Animate Gauge
+    // 2. Animate Gauge
     setTimeout(() => {
-        gauge.style.setProperty('--value', `${data.probability}%`);
+        gauge.style.setProperty('--value', `${data.approval_probability}%`);
         gauge.style.setProperty('--gauge-color', colorHex);
-    }, 100); // slight delay to trigger CSS transition
+    }, 100);
     
-    probValue.textContent = `${data.probability}%`;
-    probValue.style.textShadow = `0 0 20px ${colorHex}80`; // 80 is alpha hex
+    probValue.textContent = `${Math.round(data.approval_probability)}%`;
+    probValue.style.textShadow = `0 0 20px ${colorHex}80`;
 
-    // Banner Logic
+    // 3. Banner Logic & Rejection Badges
     statusBanner.classList.remove('hidden');
-    if (data.probability > 50) {
-        statusBanner.textContent = '✅ TITLE APPROVED';
-        statusBanner.className = 'banner banner-approved fade-in';
-    } else {
-        statusBanner.textContent = '❌ TITLE REJECTED';
+    statusBanner.innerHTML = ''; // Clear previous content
+    
+    const bannerTitle = document.createElement('div');
+    bannerTitle.textContent = data.verdict === 'APPROVED' ? '✅ TITLE APPROVED' : '❌ TITLE REJECTED';
+    statusBanner.appendChild(bannerTitle);
+
+    if (data.verdict === 'REJECTED') {
         statusBanner.className = 'banner banner-rejected fade-in';
+        
+        // Add badges for rejection reasons under the verdict
+        const badgeContainer = document.createElement('div');
+        badgeContainer.style.display = 'flex';
+        badgeContainer.style.flexWrap = 'wrap';
+        badgeContainer.style.justifyContent = 'center';
+        badgeContainer.style.gap = '0.5rem';
+        badgeContainer.style.marginTop = '1rem';
+        
+        data.rejection_reasons.forEach(reason => {
+            const badge = document.createElement('span');
+            badge.className = 'badge';
+            badge.style.backgroundColor = 'rgba(255, 75, 75, 0.2)';
+            badge.style.border = '1px solid var(--error-color)';
+            badge.style.color = 'white';
+            badge.style.fontSize = '0.7rem';
+            badge.textContent = reason;
+            badgeContainer.appendChild(badge);
+        });
+        statusBanner.appendChild(badgeContainer);
+    } else {
+        statusBanner.className = 'banner banner-approved fade-in';
     }
 
-    // Confetti Logic
-    if (data.probability >= 80) {
+    if (data.approval_probability >= 80) {
         createConfetti();
     }
     
-    // Render Rejection Reasons
+    // 4. Render Rejection Reasons (Cards)
+    const reasonsContainer = document.getElementById('reasonsContainer');
+    const reasonsList = document.getElementById('reasonsList');
+    reasonsList.innerHTML = '';
+    
     if (data.rejection_reasons && data.rejection_reasons.length > 0) {
-        const reasonsContainer = document.getElementById('reasonsContainer');
-        const reasonsList = document.getElementById('reasonsList');
         reasonsContainer.classList.remove('hidden');
-        
         data.rejection_reasons.forEach((reason, index) => {
             const card = document.createElement('div');
             card.className = `reason-card fade-in delay-${(index % 3) + 1}`;
-            
             card.innerHTML = `
                 <div class="reason-icon">⚠️</div>
                 <div class="reason-text">${reason}</div>
             `;
             reasonsList.appendChild(card);
         });
+    } else {
+        reasonsContainer.classList.add('hidden');
     }
     
-    // Render Similar Titles
-    if (data.similar_titles && data.similar_titles.length > 0) {
-        const similarContainer = document.getElementById('similarContainer');
-        const similarList = document.getElementById('similarList');
+    // 5. Render Similar Titles
+    const similarContainer = document.getElementById('similarContainer');
+    const similarList = document.getElementById('similarList');
+    similarList.innerHTML = '';
+    
+    if (data.top_similar_titles && data.top_similar_titles.length > 0) {
         similarContainer.classList.remove('hidden');
-        
-        // Top 5 only
-        const top5 = data.similar_titles.slice(0, 5);
-        
-        top5.forEach((item, index) => {
+        data.top_similar_titles.forEach((item, index) => {
             const card = document.createElement('div');
             card.className = `similar-card fade-in delay-${(index % 3) + 1}`;
             
-            // Dynamic color for the progress bar based on match percentage (inverse logic to probability)
             let barColor = 'var(--error-color)';
             if (item.match_percentage < 40) barColor = 'var(--success-color)';
             else if (item.match_percentage < 70) barColor = 'var(--warning-color)';
 
-            const badgeClass = item.match_type === 'phonetic' ? 'badge-phonetic' : 'badge-fuzzy';
+            const badgeClass = item.match_type === 'semantic' ? 'badge-fuzzy' : (item.match_type === 'phonetic' ? 'badge-phonetic' : 'badge-fuzzy');
             
             card.innerHTML = `
                 <div class="similar-header">
@@ -179,18 +199,80 @@ function renderResults(data) {
                 </div>
             `;
             similarList.appendChild(card);
-            
-            // Animate progress bar
             setTimeout(() => {
                 const bar = card.querySelector('.progress-bar');
                 if(bar) bar.style.width = `${item.match_percentage}%`;
             }, 300);
         });
+    } else {
+        similarContainer.classList.add('hidden');
     }
+
+    // 6. ADD CHECKS BREAKDOWN SECTION
+    renderChecksBreakdown(data.checks);
+}
+
+function renderChecksBreakdown(checks) {
+    const container = document.querySelector('.container');
+    
+    // Remove existing breakdown if any
+    const existing = document.getElementById('checksBreakdown');
+    if (existing) existing.remove();
+    
+    const breakdownSection = document.createElement('div');
+    breakdownSection.id = 'checksBreakdown';
+    breakdownSection.style.marginTop = '3rem';
+    breakdownSection.className = 'fade-in delay-3';
+    
+    const title = document.createElement('h3');
+    title.className = 'section-title';
+    title.style.cursor = 'pointer';
+    title.innerHTML = '🔍 Checks Breakdown <span style="font-size: 0.8rem; float: right;">(Click to Toggle)</span>';
+    
+    const content = document.createElement('div');
+    content.id = 'breakdownContent';
+    content.className = 'hidden';
+    content.style.padding = '1.5rem';
+    content.style.background = 'var(--card-bg)';
+    content.style.border = '1px solid var(--card-border)';
+    content.style.borderRadius = '12px';
+    content.style.marginTop = '1rem';
+    
+    // Helper to create breakdown item
+    const createItem = (label, score, detail) => {
+        return `
+            <div style="margin-bottom: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 1rem;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span style="font-weight: 600;">${label}</span>
+                    <span style="color: var(--accent-color); font-weight: 700;">${score}</span>
+                </div>
+                <div style="font-size: 0.85rem; color: var(--text-muted);">${detail}</div>
+            </div>
+        `;
+    };
+
+    content.innerHTML = `
+        ${createItem('Phonetic Match', `${checks.phonetic.score}%`, `Sounds like: ${checks.phonetic.matches.map(m => m.existing_title).join(', ') || 'None'}`)}
+        ${createItem('Fuzzy Match', `${checks.fuzzy.score}%`, `Spelled like: ${checks.fuzzy.matches.map(m => m.existing_title).join(', ') || 'None'}`)}
+        ${createItem('Semantic Match', `${checks.semantic.score}%`, `Meanings like: ${checks.semantic.matches.map(m => m.existing_title).join(', ') || 'None'}`)}
+        ${createItem('Rule Violations', checks.rules.violation_count, `Violations: ${checks.rules.violations.join(', ') || 'None'}`)}
+    `;
+    
+    title.addEventListener('click', () => {
+        content.classList.toggle('hidden');
+    });
+    
+    breakdownSection.appendChild(title);
+    breakdownSection.appendChild(content);
+    
+    // Insert before actions
+    const actions = document.querySelector('.actions');
+    container.insertBefore(breakdownSection, actions);
 }
 
 function createConfetti() {
     const box = document.getElementById('confettiBox');
+    if (!box) return;
     box.classList.remove('hidden');
     const colors = ['#2ecc71', '#5B6AF9', '#f2d74e', '#e74c3c', '#9b59b6'];
     
@@ -201,16 +283,9 @@ function createConfetti() {
         confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
         confetti.style.animation = `confettiFall ${Math.random() * 3 + 2}s linear forwards`;
         confetti.style.animationDelay = `${Math.random() * 2}s`;
-        
-        // Random shapes
-        if (Math.random() > 0.5) {
-            confetti.style.borderRadius = '50%';
-        }
-        
+        if (Math.random() > 0.5) confetti.style.borderRadius = '50%';
         box.appendChild(confetti);
     }
-    
-    // Cleanup
     setTimeout(() => {
         box.innerHTML = '';
         box.classList.add('hidden');

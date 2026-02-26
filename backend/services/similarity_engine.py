@@ -3,15 +3,14 @@ import os
 from backend.services.phonetic_checker import check_phonetic
 from backend.services.fuzzy_checker import check_fuzzy
 from backend.services.rules_checker import check_rules
+from backend.services.semantic_checker import check_cross_language_similarity, check_conceptual_theme
 from backend.database import get_all_titles
 
 def load_existing_titles():
-    # Try getting from database first
     titles = get_all_titles()
     if titles:
         return titles
     
-    # Fallback to JSON if database not found or empty
     data_dir = os.path.join(os.path.dirname(__file__), '..', 'data')
     database_path = os.path.join(data_dir, 'titles_database.json')
     sample_path = os.path.join(data_dir, 'sample_titles.json')
@@ -27,40 +26,48 @@ def load_existing_titles():
 def verify_title(title: str) -> dict:
     existing_titles = load_existing_titles()
     
+    # 1. Run similarity checks
     phonetic_results = check_phonetic(title, existing_titles)
     fuzzy_results = check_fuzzy(title, existing_titles)
+    cross_lang_results = check_cross_language_similarity(title, existing_titles)
     
-    reasons = check_rules(title, existing_titles)
+    # Get highest score among all checks (Problem Statement Logic)
+    scores = [0.0]
+    if phonetic_results: scores.append(max(r['match_percentage'] for r in phonetic_results))
+    if fuzzy_results: scores.append(max(r['match_percentage'] for r in fuzzy_results))
+    if cross_lang_results: scores.append(max(r['match_percentage'] for r in cross_lang_results))
     
-    # Combine and de-duplicate highest similarity scores
-    all_similarities = {}
-    for res in phonetic_results + fuzzy_results:
-        existing = res['existing_title']
-        if existing not in all_similarities:
-            all_similarities[existing] = res
-        else:
-            if res['match_percentage'] > all_similarities[existing]['match_percentage']:
-                all_similarities[existing] = res
-                
-    similar_titles_list = list(all_similarities.values())
+    highest_similarity = max(scores)
     
-    # Sort descending by match percentage
-    similar_titles_list.sort(key=lambda x: x['match_percentage'], reverse=True)
+    # 2. Run rules and conceptual theme checks
+    rejection_reasons = check_rules(title, existing_titles)
+    theme_match = check_conceptual_theme(title)
+    if theme_match:
+        rejection_reasons.append(f"Conceptual theme violation: Found '{theme_match['trigger']}' belonging to the '{theme_match['theme']}' cluster.")
+
+    # 3. Calculate Probability (Problem Statement Logic)
+    # If ANY violation exists, probability is 0
+    if rejection_reasons:
+        approval_probability = 0
+        verdict = "REJECTED"
+    else:
+        approval_probability = max(0, 100 - highest_similarity)
+        verdict = "APPROVED" if approval_probability > 50 else "REJECTED"
     
-    highest_similarity = 0
-    if similar_titles_list:
-        highest_similarity = similar_titles_list[0]['match_percentage']
-        
-    probability = max(0, 100 - highest_similarity)
+    # Combine matches for UI
+    all_matches = phonetic_results + fuzzy_results + cross_lang_results
+    all_matches.sort(key=lambda x: x['match_percentage'], reverse=True)
     
-    # Final check: if very high similarity, add to rejection reasons
-    if highest_similarity > 80:
-        reasons.append(f"Title is extremely similar ({highest_similarity}%) to an existing title.")
-        
     return {
         "title": title,
-        "similarity_score": round(highest_similarity, 2),
-        "probability": round(probability, 2),
-        "rejection_reasons": sorted(list(set(reasons))),
-        "similar_titles": similar_titles_list
+        "approval_probability": round(approval_probability, 2),
+        "verdict": verdict,
+        "rejection_reasons": sorted(list(set(rejection_reasons))),
+        "top_similar_titles": all_matches[:5],
+        "checks": {
+            "phonetic": {"score": max([r['match_percentage'] for r in phonetic_results] or [0])},
+            "fuzzy": {"score": max([r['match_percentage'] for r in fuzzy_results] or [0])},
+            "cross_language": {"score": max([r['match_percentage'] for r in cross_lang_results] or [0])},
+            "rules": {"violation_count": len(rejection_reasons)}
+        }
     }

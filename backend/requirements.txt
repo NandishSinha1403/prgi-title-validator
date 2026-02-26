@@ -5,3 +5,4 @@ jellyfish
 pandas
 python-multipart
 pydantic
+deep-translator

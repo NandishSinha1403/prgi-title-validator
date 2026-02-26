@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 class TitleRequest(BaseModel):
     title: str
@@ -11,10 +11,11 @@ class SimilarityResult(BaseModel):
 
 class TitleResponse(BaseModel):
     title: str
-    similarity_score: float
-    probability: float
+    approval_probability: float
+    verdict: str
     rejection_reasons: List[str]
-    similar_titles: List[SimilarityResult]
+    top_similar_titles: List[SimilarityResult]
+    checks: Dict[str, Any]
 
 class WordRequest(BaseModel):
     word: str

@@ -16,7 +16,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="PRGI Title Validator", 
-    description="API for Title Validation with SQLite backend",
+    description="API for Title Validation with Semantic & SQLite backend",
     lifespan=lifespan
 )
 
@@ -52,7 +52,7 @@ def api_add_disallowed_word(request: WordRequest):
     # Save to SQLite
     add_disallowed_word(word)
     
-    # Still returning all words for convenience
+    # Return message and refreshed list
     return {"message": f"Word '{word}' added successfully", "words": load_disallowed_words()}
 
 @app.get("/api/stats")
