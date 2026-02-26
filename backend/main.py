@@ -2,13 +2,25 @@ import json
 import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 from backend.models.schemas import TitleRequest, TitleResponse, WordRequest
 from backend.services.similarity_engine import verify_title, load_existing_titles
 from backend.services.rules_checker import load_disallowed_words
+from backend.database import init_db, add_disallowed_word, get_db_stats
 
-app = FastAPI(title="PRGI Title Validator", description="API for Title Validation")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Initialize DB on startup
+    init_db()
+    yield
 
-# Setup CORS to allow the frontend to interact with this backend
+app = FastAPI(
+    title="PRGI Title Validator", 
+    description="API for Title Validation with SQLite backend",
+    lifespan=lifespan
+)
+
+# Setup CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -16,9 +28,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-def get_disallowed_words_path():
-    return os.path.join(os.path.dirname(__file__), 'data', 'disallowed_words.json')
 
 @app.post("/api/verify-title", response_model=TitleResponse)
 def api_verify_title(request: TitleRequest):
@@ -35,12 +44,17 @@ def get_disallowed_words():
     return load_disallowed_words()
 
 @app.post("/api/admin/add-disallowed-word")
-def add_disallowed_word(request: WordRequest):
-    words = load_disallowed_words()
+def api_add_disallowed_word(request: WordRequest):
     word = request.word.strip()
-    if word not in words:
-        words.append(word)
-        # Assuming we can write to this file locally during dev/hackathon
-        with open(get_disallowed_words_path(), 'w') as f:
-            json.dump(words, f, indent=2)
-    return {"message": "Word added successfully", "words": words}
+    if not word:
+        raise HTTPException(status_code=400, detail="Word cannot be empty")
+    
+    # Save to SQLite
+    add_disallowed_word(word)
+    
+    # Still returning all words for convenience
+    return {"message": f"Word '{word}' added successfully", "words": load_disallowed_words()}
+
+@app.get("/api/stats")
+def get_api_stats():
+    return get_db_stats()

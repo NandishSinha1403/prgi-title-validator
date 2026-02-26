@@ -4,17 +4,39 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PRGI Title Validator</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
-    <div class="container">
-        <header class="hero">
-            <h1>PRGI Title Validator</h1>
-            <p>Advanced Title Similarity & Compliance Validation System</p>
-            <p style="margin-bottom: 3rem;">Ensure your publication title meets PRGI guidelines with our AI-powered phonetic and fuzzy matching engine.</p>
+    <nav class="navbar">
+        <a href="index.html" class="nav-brand">PRGI Validator</a>
+        <a href="http://127.0.0.1:8000/docs" class="nav-link" target="_blank">API Docs</a>
+    </nav>
+
+    <div class="hero-wrapper">
+        <div class="hero-bg"></div>
+        <div class="hero fade-in">
+            <h1>Is Your Title Unique?</h1>
+            <p>Check against 12,000+ registered PRGI titles instantly. Our AI-powered engine ensures compliance before you apply.</p>
             <a href="submit.html" class="btn btn-large">Verify Your Title</a>
-        </header>
+        </div>
+
+        <div class="features">
+            <div class="feature-card fade-in delay-1">
+                <div class="feature-icon">🎙️</div>
+                <h3 class="feature-title">Phonetic Matching</h3>
+                <p class="feature-desc">Utilizes Soundex and NYSIIS algorithms to catch titles that sound dangerously similar.</p>
+            </div>
+            <div class="feature-card fade-in delay-2">
+                <div class="feature-icon">🔍</div>
+                <h3 class="feature-title">Fuzzy Detection</h3>
+                <p class="feature-desc">Detects typographical variations, spelling mistakes, and minor differences.</p>
+            </div>
+            <div class="feature-card fade-in delay-3">
+                <div class="feature-icon">⚖️</div>
+                <h3 class="feature-title">Rule Compliance</h3>
+                <p class="feature-desc">Strict enforcement against disallowed words, restricted prefixes, and periodicity issues.</p>
+            </div>
+        </div>
     </div>
 </body>
 </html>

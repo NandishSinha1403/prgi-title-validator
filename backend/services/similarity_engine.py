@@ -3,8 +3,15 @@ import os
 from backend.services.phonetic_checker import check_phonetic
 from backend.services.fuzzy_checker import check_fuzzy
 from backend.services.rules_checker import check_rules
+from backend.database import get_all_titles
 
 def load_existing_titles():
+    # Try getting from database first
+    titles = get_all_titles()
+    if titles:
+        return titles
+    
+    # Fallback to JSON if database not found or empty
     data_dir = os.path.join(os.path.dirname(__file__), '..', 'data')
     database_path = os.path.join(data_dir, 'titles_database.json')
     sample_path = os.path.join(data_dir, 'sample_titles.json')
