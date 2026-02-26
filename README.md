@@ -47,29 +47,6 @@ Any hard violation (disallowed word, periodicity, combination) = instant 0%
 
 ---
 
-## Project Structure
-prgi-title-validator/
-├── backend/
-│   ├── main.py                  # FastAPI app, all endpoints
-│   ├── database.py              # SQLite connection, title cache (set for O(1))
-│   ├── load_titles.py           # HTML-in-XLS parser for test data
-│   ├── requirements.txt
-│   ├── data/
-│   │   ├── prgi_titles.db       # Main SQLite database (58,582 titles)
-│   │   ├── disallowed_words.json
-│   │   └── TestExcel*.xls       # Official PRGI test cases (6 files)
-│   ├── models/
-│   │   └── schemas.py           # Pydantic request/response models
-│   └── services/
-│       ├── similarity_engine.py # Orchestrator — runs all 5 priority checks
-│       ├── phonetic_checker.py  # Soundex + NYSIIS word-by-word comparison
-│       ├── fuzzy_checker.py     # Levenshtein-based rapidfuzz matching
-│       ├── rules_checker.py     # Disallowed words, periodicity, combination
-│       └── semantic_checker.py  # Cross-language + conceptual theme detection
-└── frontend/
-└── index.html               # Unified SPA — Validator, Database, Stats, Admin
-
----
 
 ## API Endpoints
 
