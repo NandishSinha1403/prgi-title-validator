@@ -8,22 +8,17 @@ THEMES = {
     "nation":  ["rashtra", "desh"]
 }
 
-def is_ascii(s):
-    return all(ord(c) < 128 for c in s)
-
 def check_cross_language_similarity(new_title: str, existing_titles: list[str]) -> list[dict]:
     """
-    Translates title only if non-ASCII characters are present, then performs high-performance fuzzy matching.
+    Translates title and performs high-performance fuzzy matching.
+    Lightweight alternative to sentence-transformers.
     """
-    # OPTIMIZATION: If title is pure ASCII (English), skip translation to save 600ms+ network time
-    if is_ascii(new_title):
+    try:
+        # Always attempt translation to catch cross-language cases
+        translated = GoogleTranslator(source='auto', target='en').translate(new_title)
+        translated_upper = translated.upper()
+    except Exception:
         translated_upper = new_title.upper()
-    else:
-        try:
-            translated = GoogleTranslator(source='auto', target='en').translate(new_title)
-            translated_upper = translated.upper()
-        except Exception:
-            translated_upper = new_title.upper()
     
     # Use C++ optimized process.extract
     matches = process.extract(

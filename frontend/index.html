@@ -106,7 +106,10 @@
 
         .match-row { display: flex; flex-direction: column; gap: 8px; padding-bottom: 15px; border-bottom: 1px solid #222; margin-bottom: 15px; }
         .match-header { display: flex; justify-content: space-between; align-items: center; }
-        .match-badge { border: 1px solid var(--primary-crimson); color: var(--primary-crimson); font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: bold; }
+        .match-badge { border: 1px solid var(--primary-crimson); color: var(--primary-crimson); font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: bold; text-transform: uppercase; display: flex; flex-direction: column; align-items: center; line-height: 1.2; }
+        .badge-subtitle { font-size: 8px; font-weight: normal; opacity: 0.8; }
+        .priority-label { font-size: 11px; color: var(--text-secondary); font-variant: small-caps; letter-spacing: 1px; margin-bottom: 15px; display: block; margin-top: 30px; }
+
         .progress-bg { width: 100%; height: 4px; background: #222; }
         .progress-fill { height: 100%; background: var(--primary-crimson); transition: 0.5s; }
 
@@ -386,20 +389,43 @@
 
             const similarArea = document.getElementById('similarTitlesArea');
             similarArea.innerHTML = '';
-            data.top_similar_titles.forEach(m => {
-                similarArea.innerHTML += `
-                    <div class="match-row">
-                        <div class="match-header">
-                            <span class="serif" style="font-size: 18px;">${m.existing_title}</span>
-                            <div style="display: flex; align-items: center; gap: 15px;">
-                                <span class="match-badge">${m.match_type.toUpperCase()}</span>
-                                <span style="color: var(--primary-crimson); font-weight: bold;">${Math.round(m.match_percentage)}%</span>
+            
+            if (data.priority_matches && data.priority_matches.length > 0) {
+                data.priority_matches.forEach(group => {
+                    const groupTitle = document.createElement('span');
+                    groupTitle.className = 'priority-label';
+                    groupTitle.innerText = group.label;
+                    similarArea.appendChild(groupTitle);
+
+                    group.matches.forEach(m => {
+                        let badgeLabel = m.match_type.replace(/_/g, ' ').toUpperCase();
+                        let badgeSubtitle = '';
+                        
+                        if (m.match_type === 'semantic_cross_language') {
+                            badgeLabel = 'SEMANTIC';
+                            badgeSubtitle = '<span class="badge-subtitle">Cross-Language</span>';
+                        } else if (m.match_type === 'semantic_conceptual') {
+                            badgeLabel = 'SEMANTIC';
+                            badgeSubtitle = '<span class="badge-subtitle">Conceptual Theme</span>';
+                        }
+
+                        similarArea.innerHTML += `
+                            <div class="match-row">
+                                <div class="match-header">
+                                    <span class="serif" style="font-size: 18px;">${m.existing_title}</span>
+                                    <div style="display: flex; align-items: center; gap: 15px;">
+                                        <div class="match-badge">${badgeLabel}${badgeSubtitle}</div>
+                                        <span style="color: var(--primary-crimson); font-weight: bold;">${Math.round(m.match_percentage)}%</span>
+                                    </div>
+                                </div>
+                                <div class="progress-bg"><div class="progress-fill" style="width: ${m.match_percentage}%"></div></div>
                             </div>
-                        </div>
-                        <div class="progress-bg"><div class="progress-fill" style="width: ${m.match_percentage}%"></div></div>
-                    </div>
-                `;
-            });
+                        `;
+                    });
+                });
+            } else {
+                similarArea.innerHTML = '<p style="color: var(--text-secondary); font-size: 14px;">No major similarities detected.</p>';
+            }
         }
 
         // --- Database ---

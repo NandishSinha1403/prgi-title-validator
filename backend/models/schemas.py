@@ -9,12 +9,17 @@ class SimilarityResult(BaseModel):
     match_percentage: float
     match_type: str
 
+class PriorityGroup(BaseModel):
+    priority: int
+    label: str
+    matches: List[SimilarityResult]
+
 class TitleResponse(BaseModel):
     title: str
     approval_probability: float
     verdict: str
     rejection_reasons: List[str]
-    top_similar_titles: List[SimilarityResult]
+    priority_matches: List[PriorityGroup]
     checks: Dict[str, Any]
 
 class WordRequest(BaseModel):
