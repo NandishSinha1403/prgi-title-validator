@@ -1,7 +1,7 @@
 # PRGI Title Validator
 **Press Registrar General of India — Title Uniqueness & Compliance Verification System**
 
-Validates new publication title submissions against 58,582 registered titles using a 5-layer detection pipeline combining phonetic, fuzzy, and semantic similarity.
+Built for the PRGI Hackathon. Validates new publication title submissions against 58,582 registered titles using a 5-layer detection pipeline combining phonetic, fuzzy, and semantic similarity.
 
 ---
 
@@ -36,7 +36,7 @@ Any hard violation (disallowed word, periodicity, combination) = instant 0%
 **Frontend**
 - Vanilla HTML/CSS/JS (zero build step)
 - Playfair Display + Source Sans 3 (Google Fonts)
-- Single index.html — all CSS and JS inlined
+- index.html, assets/style.css, assets/app.js
 
 **Data**
 - 77,564 titles scraped from prgi.gov.in
